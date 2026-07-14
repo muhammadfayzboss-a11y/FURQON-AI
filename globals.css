@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+:root {
+  --gold: #c9a84c;
+  --gold-light: #e8d48b;
+  --dark-green: #0d3b2e;
+  --green: #1a6b4a;
+  --light-green: #e8f5ef;
+  --dark-bg: #0a1628;
+  --dark-card: #111d35;
+  --dark-surface: #162040;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold) transparent;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background: linear-gradient(135deg, #0a1628 0%, #0d2137 50%, #0a1628 100%);
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+
+.arabic-font {
+  font-family: "Amiri", serif;
+  direction: rtl;
+}
+
+/* Geometric pattern overlay */
+.pattern-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9a84c' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Glowing border animation */
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(201, 168, 76, 0.3),
+      0 0 10px rgba(201, 168, 76, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(201, 168, 76, 0.5),
+      0 0 20px rgba(201, 168, 76, 0.2);
+  }
+}
+
+.glow-border {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Typing animation */
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.typing-cursor::after {
+  content: "▊";
+  animation: blink 1s infinite;
+  color: var(--gold);
+}
+
+/* Message bubble animations */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-enter {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Star decoration */
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Markdown-like formatting */
+.chat-content strong {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.chat-content em {
+  color: #93c5fd;
+  font-style: italic;
+}
+
+/* Crescent decoration */
+.crescent {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  box-shadow: 8px -3px 0 0 var(--gold);
+}
