@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { conversations } from "@/db/schema";
+import { eq, asc } from "drizzle-orm";
 
 const MODEL_NAME = "google/gemma-3-27b-it:free";
 
@@ -75,10 +78,39 @@ function extractQuranReferences(text: string): Array<{ sura: number; ayat: numbe
   return unique.slice(0, 5);
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const sessionId = searchParams.get("sessionId");
+
+    if (!sessionId) {
+      return NextResponse.json({ error: "Session ID required" }, { status: 400 });
+    }
+
+    const history = await db.select()
+      .from(conversations)
+      .where(eq(conversations.sessionId, sessionId))
+      .orderBy(asc(conversations.createdAt));
+
+    return NextResponse.json({
+      messages: history.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }))
+    });
+  } catch (error) {
+    console.error("GET Chat API error:", error);
+    return NextResponse.json(
+      { error: "Server xatoligi: " + (error as Error).message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message } = body;
+    const { message, sessionId } = body;
 
     if (!message || typeof message !== "string") {
       return NextResponse.json(
@@ -86,6 +118,32 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: "Session ID talab qilinadi" },
+        { status: 400 }
+      );
+    }
+
+    // Save user message
+    await db.insert(conversations).values({
+      sessionId,
+      role: "user",
+      content: message,
+    });
+
+    // Get previous history
+    const history = await db.select()
+      .from(conversations)
+      .where(eq(conversations.sessionId, sessionId))
+      .orderBy(asc(conversations.createdAt))
+      .limit(10); // Keep context window reasonable
+
+    const openRouterMessages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...history.map(h => ({ role: h.role, content: h.content }))
+    ];
 
     const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -97,10 +155,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: MODEL_NAME,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: message },
-        ],
+        messages: openRouterMessages,
         temperature: 0.3,
         max_tokens: 1000,
       }),
@@ -160,6 +215,13 @@ export async function POST(request: NextRequest) {
       }
       finalResponse += "\n✅ Barcha oyatlar alquran.cloud API orqali tasdiqlandi.";
     }
+
+    // Save AI response
+    await db.insert(conversations).values({
+      sessionId,
+      role: "assistant",
+      content: finalResponse,
+    });
 
     return NextResponse.json({ 
       response: finalResponse,

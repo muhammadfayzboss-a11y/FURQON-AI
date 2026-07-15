@@ -163,7 +163,7 @@ export default function Home() {
       } else {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: data.reply },
+          { role: "assistant", content: data.response || "Javob topilmadi" },
         ]);
       }
     } catch {
