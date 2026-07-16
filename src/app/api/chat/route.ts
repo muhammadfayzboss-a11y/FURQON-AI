@@ -1,240 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
 import { db } from "@/db";
-import { conversations } from "@/db/schema";
+import { chatMessages } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 
-const MODEL_NAME = "google/gemma-3-27b-it:free";
-
-const SYSTEM_PROMPT = `Siz — Furqon AI, Islom dini bo'yicha mutaxassis AI yordamchisisiz.
-
-MUHIM QOIDALAR:
-1. Faqat SAHIH (isbotlangan) ma'lumotlarni bering
-2. Agar aniq bilmasangiz, "Bu haqida aniq ma'lumotim yo'q" deb ayting
-3. Hech qachon oyat yoki hadisni to'qimang
-4. Har bir dalilni aniq manba bilan keltiring (sura:oyat, hadis kitobi:raqam)
-5. O'zbek tilida javob bering
-
-JAVOB FORMATI:
-1. Birinchi navbatda QISQA VA ANIQ javob bering
-2. Keyin DALIL keltiring:
-   - Qur'on oyati (sura nomi, raqam, o'zbekcha tarjima)
-   - Hadis (kitob nomi, raqam, matn)
-3. Kerak bo'lsa QO'SHIMCHA IZOH bering
-
-XATO QILMASLIK UCHUN:
-- Sahobalar ismlarini aniq yozing
-- Sura va oyat raqamlarini tekshiring
-- Hadis raqamlarini taxmin qilmang
-- 4 hurmatli oy: Zulqa'da, Zulhijja, Muharram, Rajab (Shavvol emas!)
-- Qur'onda ismi bilan zikr qilingan yagona sahobiy: Zayd ibn Horisa (Ahzob 33:37)
-
-AGAR SAVOL NOANIQ BO'LSA:
-- Savolni aniqroq qilishni so'rang
-- Taxmin qilib javob bermang`;
-
-async function fetchQuranVerse(sura: number, ayat: number): Promise<{
-  arabic: string;
-  uzbek: string;
-  found: boolean;
-} | null> {
-  try {
-    const response = await fetch(
-      `https://api.alquran.cloud/v1/ayah/${sura}:${ayat}/editions/quran-uthmani,uz.mansur`
-    );
-    
-    if (!response.ok) return null;
-    
-    const data = await response.json();
-    if (data.code !== 200 || !data.data || data.data.length < 2) return null;
-    
-    return {
-      arabic: data.data[0]?.text || "",
-      uzbek: data.data[1]?.text || "",
-      found: true,
-    };
-  } catch (error) {
-    console.error("Quran API error:", error);
-    return null;
-  }
+function getClient() {
+  return new OpenAI({
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_KEY ?? "sk-placeholder",
+  });
 }
 
-function extractQuranReferences(text: string): Array<{ sura: number; ayat: number }> {
-  const references: Array<{ sura: number; ayat: number }> = [];
-  const pattern = /(\d+):(\d+)/g;
-  
-  const matches = [...text.matchAll(pattern)];
-  for (const match of matches) {
-    const sura = parseInt(match[1]);
-    const ayat = parseInt(match[2]);
-    if (sura >= 1 && sura <= 114 && ayat >= 1) {
-      references.push({ sura, ayat });
-    }
-  }
-  
-  const unique = references.filter((ref, index, self) =>
-    index === self.findIndex(r => r.sura === ref.sura && r.ayat === ref.ayat)
-  );
-  
-  return unique.slice(0, 5);
-}
+const SYSTEM_PROMPT = `Sen Furqon AI - islomiy bilimlar yordamchisisan. Sen faqat o'zbek tilida javob berasan. Sening vazifang:
+- Qur'on oyatlari va hadislar asosida savollarga javob berish
+- Islomiy masalalarda maslahat berish  
+- Namoz, ro'za, zakot va boshqa ibodat masalalarida yordam berish
+- Islom tarixi haqida ma'lumot berish
+- Har doim hurmat bilan va ilmiy asosda javob berish
+- Javoblaringda Qur'on oyatlari va sahih hadislardan dalil keltirish
+- Agar biror narsani bilmasang, "Alloh biladi" deb aytish
 
-export async function GET(request: NextRequest) {
+Muhim: Har doim o'zbek tilida javob ber. Javoblarni tushunarli va sodda tilda yoz.`;
+
+export async function POST(req: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get("sessionId");
-
-    if (!sessionId) {
-      return NextResponse.json({ error: "Session ID required" }, { status: 400 });
-    }
-
-    const history = await db.select()
-      .from(conversations)
-      .where(eq(conversations.sessionId, sessionId))
-      .orderBy(asc(conversations.createdAt));
-
-    return NextResponse.json({
-      messages: history.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }))
-    });
-  } catch (error) {
-    console.error("GET Chat API error:", error);
-    return NextResponse.json(
-      { error: "Server xatoligi: " + (error as Error).message },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
+    const body = await req.json();
     const { message, sessionId } = body;
 
     if (!message || typeof message !== "string") {
-      return NextResponse.json(
-        { error: "Xabar matni talab qilinadi" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Xabar bo'sh" }, { status: 400 });
     }
 
-    if (!sessionId) {
-      return NextResponse.json(
-        { error: "Session ID talab qilinadi" },
-        { status: 400 }
-      );
-    }
+    const sid = sessionId || crypto.randomUUID().slice(0, 16);
 
     // Save user message
-    await db.insert(conversations).values({
-      sessionId,
+    await db.insert(chatMessages).values({
       role: "user",
       content: message,
+      sessionId: sid,
     });
 
-    // Get previous history
-    const history = await db.select()
-      .from(conversations)
-      .where(eq(conversations.sessionId, sessionId))
-      .orderBy(asc(conversations.createdAt))
-      .limit(10);
+    // Get chat history for context
+    const history = await db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.sessionId, sid))
+      .orderBy(asc(chatMessages.createdAt))
+      .limit(20);
 
-    const openRouterMessages = [
+    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: SYSTEM_PROMPT },
-      ...history.map(h => ({ role: h.role, content: h.content }))
+      ...history.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
     ];
 
-    const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENROUTER_KEY}`,
-        "HTTP-Referer": "https://furqon-ai.vercel.app",
-        "X-Title": "Furqon AI",
-      },
-      body: JSON.stringify({
-        model: MODEL_NAME,
-        messages: openRouterMessages,
-        temperature: 0.3,
-        max_tokens: 1000,
-      }),
+    const client = getClient();
+    const completion = await client.chat.completions.create({
+      model: "deepseek/deepseek-chat-v3-0324:free",
+      messages,
+      max_tokens: 1500,
+      temperature: 0.7,
     });
 
-    if (!aiResponse.ok) {
-      const errorData = await aiResponse.text();
-      console.error("OpenRouter error:", errorData);
-      
-      if (aiResponse.status === 401) {
-        return NextResponse.json(
-          { error: "API kalit noto'g'ri" },
-          { status: 401 }
-        );
-      }
-      
-      return NextResponse.json(
-        { error: "AI xizmati bilan bog'lanishda xatolik" },
-        { status: aiResponse.status }
-      );
-    }
+    const reply = completion.choices?.[0]?.message?.content || "Kechirasiz, javob ololmadim.";
 
-    const aiData = await aiResponse.json();
-    const aiText = aiData.choices?.[0]?.message?.content || "Javob topilmadi";
-
-    const quranRefs = extractQuranReferences(aiText);
-    const verifiedVerses: Array<{
-      sura: number;
-      ayat: number;
-      arabic: string;
-      uzbek: string;
-      verified: boolean;
-    }> = [];
-
-    for (const ref of quranRefs) {
-      const verse = await fetchQuranVerse(ref.sura, ref.ayat);
-      verifiedVerses.push({
-        sura: ref.sura,
-        ayat: ref.ayat,
-        arabic: verse?.arabic || "",
-        uzbek: verse?.uzbek || "",
-        verified: !!verse?.found,
-      });
-    }
-
-    let finalResponse = aiText;
-    
-    const verifiedCount = verifiedVerses.filter(v => v.verified).length;
-    if (verifiedCount > 0) {
-      finalResponse += "\n\n📖 **TASDIQLANGAN OYATLAR**:\n";
-      for (const verse of verifiedVerses) {
-        if (verse.verified) {
-          finalResponse += `\n▫️ **${verse.sura}:${verse.ayat}**\n`;
-          finalResponse += `🕌 Arabcha: ${verse.arabic}\n`;
-          finalResponse += `📚 O'zbekcha: ${verse.uzbek}\n`;
-        }
-      }
-      finalResponse += "\n✅ Barcha oyatlar alquran.cloud API orqali tasdiqlandi.";
-    }
-
-    // Save AI response
-    await db.insert(conversations).values({
-      sessionId,
+    // Save assistant reply
+    await db.insert(chatMessages).values({
       role: "assistant",
-      content: finalResponse,
+      content: reply,
+      sessionId: sid,
     });
 
-    return NextResponse.json({ 
-      response: finalResponse,
-      model: MODEL_NAME,
-      verifiedVerses: verifiedVerses,
-      hasVerifiedData: verifiedCount > 0,
-    });
-
-  } catch (error) {
+    return NextResponse.json({ reply, sessionId: sid });
+  } catch (error: unknown) {
     console.error("Chat API error:", error);
-    return NextResponse.json(
-      { error: "Server xatoligi: " + (error as Error).message },
-      { status: 500 }
-    );
+    const errMsg = error instanceof Error ? error.message : "Noma'lum xato";
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }

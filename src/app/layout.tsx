@@ -3,27 +3,23 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Furqon AI — Qurʼon va Hadis Yordamchisi",
+  title: "Furqon AI — Islomiy Bilimlar Yordamchisi",
   description:
-    "Sunʼiy intellekt yordamida Qurʼon oyatlari va sahih hadislardan javob olish platformasi",
+    "Furqon AI — Qur'on va Hadis asosida savollarga javob beruvchi sun'iy intellekt yordamchisi.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="uz">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="bg-gradient-to-br from-emerald-50 via-white to-teal-50 text-slate-900 antialiased">
+        {children}
+      </body>
     </html>
   );
 }
