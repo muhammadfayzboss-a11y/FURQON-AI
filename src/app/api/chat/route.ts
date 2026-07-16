@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const client = getClient();
     const completion = await client.chat.completions.create({
-      model: "deepseek/deepseek-chat-v3-0324:free",
+      model: "openrouter/free",
       messages,
       max_tokens: 1500,
       temperature: 0.7,
