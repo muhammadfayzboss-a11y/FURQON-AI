@@ -39,14 +39,12 @@ function formatMessage(text: string) {
     } else if (processed.includes("DALIL: QUR'ON") || processed.includes("DALIL: QURON")) {
       processed = `<div class="mt-4 mb-2 text-lg font-bold text-amber-400 border-b border-amber-900/30 pb-1">📖 ${processed.replace(/\*\*/g, '')}</div>`;
     } else if (processed.includes("DALIL: HADIS")) {
-      processed = `<div class="mt-4 mb-2 text-lg font-bold text-blue-400 border-b border-blue-900/30 pb-1"> ${processed.replace(/\*\*/g, '')}</div>`;
+      processed = `<div class="mt-4 mb-2 text-lg font-bold text-blue-400 border-b border-blue-900/30 pb-1">📚 ${processed.replace(/\*\*/g, '')}</div>`;
     } else if (processed.includes("XULOSA")) {
       processed = `<div class="mt-4 mb-2 text-lg font-bold text-purple-400 border-b border-purple-900/30 pb-1">💡 ${processed.replace(/\*\*/g, '')}</div>`;
     } else if (
-      processed.startsWith("") ||
       processed.startsWith("📚") ||
       processed.startsWith("💡") ||
-      processed.startsWith("") ||
       processed.startsWith("⭐") ||
       processed.startsWith("🕌") ||
       processed.startsWith("📌")
@@ -54,7 +52,7 @@ function formatMessage(text: string) {
       processed = `<div class="mt-2 mb-1 text-base font-semibold">${processed}</div>`;
     }
     // Warning/error messages
-    if (processed.includes("️") || processed.includes("❌") || processed.includes("✅")) {
+    if (processed.includes("⚠️") || processed.includes("❌") || processed.includes("✅")) {
       processed = `<div class="my-1">${processed}</div>`;
     }
     elements.push(processed);
@@ -106,7 +104,6 @@ export default function Home() {
   // Modal states
   const [showHelp, setShowHelp] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -132,7 +129,9 @@ export default function Home() {
             }))
           );
         }
-      } catch {}
+      } catch {
+        // Ignore errors on initial load
+      }
     }
     loadHistory();
   }, [sessionId]);
@@ -388,23 +387,23 @@ export default function Home() {
       </footer>
 
       {/* Help Modal */}
-      <Modal isOpen={showHelp} onClose={() => setShowHelp(false)} title="📖 Yordam">
-        <div className="space-y-4 text-slate-300">
+      <Modal isOpen={showHelp} onClose={() => setShowHelp(false)} title="❓ Yordam">
+        <div className="space-y-4 text-slate-300 text-sm">
           <div>
-            <h3 className="text-amber-400 font-semibold mb-2">🕌 Furqon AI nima?</h3>
-            <p className="text-sm">
-              Furqon AI — bu Qurʼon oyatlari va sahih hadislarni oʻrganish uchun maxsus yaratilgan sunʼiy intellekt yordamchisi. 
-              U sizning Islomiy savollaringizga oyat va hadislar bilan javob beradi.
+            <h3 className="text-amber-400 font-semibold mb-2">📌 Furqon AI nima?</h3>
+            <p>
+              Furqon AI — Qurʼon oyatlari va sahih hadislar asosida savollaringizga javob beruvchi sunʼiy intellekt yordamchisi. 
+              U har bir javobni dalillar bilan asoslaydi.
             </p>
           </div>
           
           <div>
-            <h3 className="text-amber-400 font-semibold mb-2">📝 Qanday foydalanish kerak?</h3>
-            <ol className="text-sm space-y-2 list-decimal list-inside">
-              <li>Savolni pastdagi maydonga yozing</li>
+            <h3 className="text-amber-400 font-semibold mb-2">🔧 Qanday foydalanish</h3>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Pastdagi maydonga savolingizni yozing</li>
               <li>Enter tugmasini bosing yoki yuborish tugmasini bosing</li>
-              <li>AI Qurʼon va hadislardan javob qaytaradi</li>
-              <li>Yangi suhbat boshlash uchun "Yangi" tugmasini bosing</li>
+              <li>AI Qurʼon va hadislardan dalillar bilan javob beradi</li>
+              <li>Yangi suhbat boshlash uchun &quot;Yangi&quot; tugmasini bosing</li>
             </ol>
           </div>
           
@@ -436,7 +435,7 @@ export default function Home() {
               <span className="text-4xl">👨‍💻</span>
             </div>
             <h3 className="text-xl font-bold text-amber-400">Muhammad Fayz</h3>
-            <p className="text-sm text-slate-500">Dasturchi & Loyiha Muallifi</p>
+            <p className="text-sm text-slate-500">Dasturchi &amp; Loyiha Muallifi</p>
           </div>
           
           <div className="bg-[#0a1628] rounded-xl p-4 space-y-4">

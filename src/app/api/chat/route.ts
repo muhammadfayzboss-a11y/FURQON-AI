@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       .from(conversations)
       .where(eq(conversations.sessionId, sessionId))
       .orderBy(asc(conversations.createdAt))
-      .limit(10); // Keep context window reasonable
+      .limit(10);
 
     const openRouterMessages = [
       { role: "system", content: SYSTEM_PROMPT },
